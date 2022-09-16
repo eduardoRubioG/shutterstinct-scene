@@ -1,29 +1,66 @@
 import "./style.css";
 import * as THREE from "three";
+import Stats from "stats.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { Water } from "three/examples/jsm/objects/Water.js";
+
 import * as dat from "lil-gui";
 
-import { worldPlane, cubeRenderTargetBuilder } from "./objectFactory.ts";
+import {
+  worldPlane,
+  cubeRenderTargetBuilder,
+  hugeCircleLight,
+} from "./objectFactory.ts";
+import noise from "./utils/noise";
 
 /**
  * Base
  */
 // Debug
 const gui = new dat.GUI();
+const stats = new Stats();
+stats.showPanel(0);
+document.body.appendChild(stats.dom);
 
 // Canvas
 const canvas = document.querySelector("canvas.webgl");
 
 // Scene
 const scene = new THREE.Scene();
+const sceneHasFog = false;
+scene.fog = sceneHasFog ? new THREE.Fog("#000", 1, 400) : null;
+
+// Plane / Water plane
+// Water
+
+const waterGeometry = new THREE.PlaneGeometry(1000, 1000);
+
+// const texture = new THREE.TextureLoader().load("waternormals.jpg");
+
+const water = new Water(waterGeometry, {
+  textureWidth: 512,
+  textureHeight: 512,
+  waterNormals: new THREE.TextureLoader().load(
+    "waternormals.jpg",
+    function (texture) {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    }
+  ),
+  sunDirection: new THREE.Vector3(),
+  sunColor: 0xffffff,
+  waterColor: 0x001e0f,
+  distortionScale: 3.7,
+  fog: scene.fog !== undefined,
+});
+water.rotation.x = -Math.PI / 2;
+scene.add(water);
+// scene.add(worldPlane());
 
 // Cube Cam
 const cubeRenderTarget = cubeRenderTargetBuilder();
 const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
-
-scene.add(worldPlane());
 
 // Shiny Material
 const shinyMaterial2 = new THREE.MeshLambertMaterial({
@@ -46,6 +83,7 @@ const icoSphere = new THREE.IcosahedronGeometry(10, 60);
 icoSphere.computeVertexNormals();
 const meshSphere = new THREE.Mesh(icoSphere, shinyMaterial);
 meshSphere.position.set(0, 15, 0);
+meshSphere.add(cubeCamera);
 scene.add(meshSphere);
 
 // reference cube
@@ -84,6 +122,12 @@ directionalLight.shadow.normalBias = 0.05;
 directionalLight.position.set(0.25, 3, -2.25);
 scene.add(directionalLight);
 
+const bigLight1 = hugeCircleLight();
+const bigLight2 = hugeCircleLight();
+bigLight2.rotateY(Math.PI / 2);
+scene.add(bigLight1);
+scene.add(bigLight2);
+
 /**
  * Sizes
  */
@@ -118,7 +162,7 @@ const camera = new THREE.PerspectiveCamera(
   75,
   sizes.width / sizes.height,
   0.1,
-  500
+  1000
 );
 camera.position.set(40, 30, 40);
 camera.lookAt(0, 0, 0);
@@ -162,7 +206,16 @@ effectComposer.addPass(renderPass);
 const clock = new THREE.Clock();
 
 const tick = () => {
+  stats.begin();
+
   const elapsedTime = clock.getElapsedTime();
+
+  // Animations
+  bigLight1.rotation.y = elapsedTime * 0.5;
+  bigLight1.rotation.x = elapsedTime * 0.25;
+  bigLight2.rotation.y = elapsedTime * 0.5 * -1.0;
+  bigLight2.rotation.z = elapsedTime * 0.5 * -1.0;
+  water.material.uniforms["time"].value += 1.0 / 60.0;
 
   // Cube Cam
   cubeCamera.position.copy(meshSphere.position);
@@ -174,11 +227,14 @@ const tick = () => {
 
   // Render
   meshSphere.visible = true;
-  //   renderer.render(scene, camera);
+  // renderer.render(scene, camera);
   effectComposer.render();
+
+  stats.end();
 
   // Call tick again on the next frame
   window.requestAnimationFrame(tick);
 };
 
+noise();
 tick();

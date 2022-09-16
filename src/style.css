@@ -17,3 +17,17 @@ body
     left: 0;
     outline: none;
 }
+
+.noise-layer {
+    position: absolute;
+    top: 0; left: 0; 
+    width: 100%;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+#noise {
+    opacity: 0.075; 
+    background-color: #ededed;
+}
