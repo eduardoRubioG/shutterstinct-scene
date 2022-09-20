@@ -24,6 +24,6 @@ export const cubeRenderTargetBuilder = () => {
 export const hugeCircleLight = () => {
   return new THREE.Mesh(
     new THREE.TorusBufferGeometry(350, 3, 16, 100),
-    new THREE.MeshStandardMaterial({ color: "green" })
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
   );
 };
