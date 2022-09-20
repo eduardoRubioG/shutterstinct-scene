@@ -4,7 +4,9 @@ import Stats from "stats.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { Water } from "three/examples/jsm/objects/Water.js";
+
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { RectAreaLightHelper } from "three/examples/jsm/helpers/RectAreaLightHelper.js";
 
 import * as dat from "lil-gui";
 
@@ -32,44 +34,11 @@ const scene = new THREE.Scene();
 const sceneHasFog = false;
 scene.fog = sceneHasFog ? new THREE.Fog("#000", 1, 400) : null;
 
-// Plane / Water plane
-// Water
-
-const waterGeometry = new THREE.PlaneGeometry(1000, 1000);
-
-// const texture = new THREE.TextureLoader().load("waternormals.jpg");
-
-const water = new Water(waterGeometry, {
-  textureWidth: 512,
-  textureHeight: 512,
-  waterNormals: new THREE.TextureLoader().load(
-    "waternormals.jpg",
-    function (texture) {
-      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    }
-  ),
-  sunDirection: new THREE.Vector3(),
-  sunColor: 0xffffff,
-  waterColor: 0x001e0f,
-  distortionScale: 3.7,
-  fog: scene.fog !== undefined,
-});
-water.rotation.x = -Math.PI / 2;
-scene.add(water);
-// scene.add(worldPlane());
-
 // Cube Cam
 const cubeRenderTarget = cubeRenderTargetBuilder();
 const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
 
 // Shiny Material
-const shinyMaterial2 = new THREE.MeshLambertMaterial({
-  color: 0xd1d1d1,
-  envMap: cubeRenderTarget.texture,
-  emissive: 0x1b1b1b,
-  emissiveIntensity: 1,
-  refractionRatio: 1,
-});
 const shinyMaterial = new THREE.MeshStandardMaterial({
   roughness: 0.1,
   metalness: 1.0,
@@ -77,8 +46,6 @@ const shinyMaterial = new THREE.MeshStandardMaterial({
 });
 
 // Sphere
-const geometrySphere = new THREE.SphereGeometry(10, 32, 16);
-// const materialSphere = new THREE.MeshBasicMaterial({ color: "cyan" });
 const icoSphere = new THREE.IcosahedronGeometry(10, 60);
 icoSphere.computeVertexNormals();
 const meshSphere = new THREE.Mesh(icoSphere, shinyMaterial);
@@ -93,7 +60,6 @@ const cubeMesh = new THREE.Mesh(
 );
 cubeMesh.position.set(20, 2.5, 20);
 scene.add(cubeMesh);
-// reference cube
 
 const taurusMesh = new THREE.Mesh(
   new THREE.TorusGeometry(5, 3, 16, 100),
@@ -120,7 +86,14 @@ directionalLight.shadow.mapSize.set(1024, 1024);
 directionalLight.shadow.camera.far = 15;
 directionalLight.shadow.normalBias = 0.05;
 directionalLight.position.set(0.25, 3, -2.25);
-scene.add(directionalLight);
+// scene.add(directionalLight);
+
+const panelLight1 = new THREE.RectAreaLight(0xffffff, 3.0, 20, 100);
+panelLight1.position.set(-20, 0, -20);
+panelLight1.lookAt(0, 0, 0);
+const rectLightHelper = new RectAreaLightHelper(panelLight1);
+panelLight1.add(rectLightHelper);
+scene.add(panelLight1);
 
 const bigLight1 = hugeCircleLight();
 const bigLight2 = hugeCircleLight();
@@ -196,9 +169,10 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const effectComposer = new EffectComposer(renderer);
 effectComposer.setSize(sizes.width, sizes.height);
 effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+effectComposer.addPass(new RenderPass(scene, camera));
 
-const renderPass = new RenderPass(scene, camera);
-effectComposer.addPass(renderPass);
+const unrealBloomPass = new UnrealBloomPass();
+effectComposer.addPass(unrealBloomPass);
 
 /**
  * Animate
@@ -215,7 +189,6 @@ const tick = () => {
   bigLight1.rotation.x = elapsedTime * 0.25;
   bigLight2.rotation.y = elapsedTime * 0.5 * -1.0;
   bigLight2.rotation.z = elapsedTime * 0.5 * -1.0;
-  water.material.uniforms["time"].value += 1.0 / 60.0;
 
   // Cube Cam
   cubeCamera.position.copy(meshSphere.position);
